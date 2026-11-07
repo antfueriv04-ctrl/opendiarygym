@@ -310,6 +310,28 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
 .odg-card button{border-radius:10px;font-weight:600;padding:11px 14px;background:var(--ac);color:#fff;border:0;font-size:.9rem;cursor:pointer}
 .odg-card button.ghost{background:var(--sf2);border:1px solid var(--ln);color:var(--tx)}
 .top-actions{display:flex;align-items:center;gap:8px}
+.app-main table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.app-main .bg-gradient-to-r{background-image:none;background:var(--ac)}
+@media(max-width:639px){
+.app-main{padding:10px 12px 92px}
+.brand{font-size:.95rem;gap:8px}
+.brand small{display:none}
+.top-actions{gap:6px}
+.app-main .top-actions .btn{padding:6px 10px;font-size:.78rem}
+.app-main .seg button{padding:6px 10px;font-size:.76rem}
+#weekly-planner-section .grid-cols-1{grid-template-columns:repeat(2,minmax(0,1fr))}
+#weekly-planner-section .grid-cols-1 button{font-size:.78rem;padding:10px 6px}
+#current-month-display{font-size:1rem;text-align:center;flex:1}
+#weekly-planner-section .flex.items-center.justify-between button{white-space:nowrap;padding:8px 10px;font-size:.8rem}
+.app-main button[onclick^="startNewWorkout"]{width:100%}
+}
+@media(max-width:639px){
+.topbar{gap:6px}
+.brand{min-width:0;font-size:.9rem;gap:6px}
+.brand i{width:26px;height:26px}
+.top-actions{flex:none}
+.app-main .seg button{padding:6px 9px}
+}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
