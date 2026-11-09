@@ -332,6 +332,24 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
 .top-actions{flex:none}
 .app-main .seg button{padding:6px 9px}
 }
+.odg-hint{background:rgba(79,140,255,.1);border:1px solid rgba(79,140,255,.35);border-radius:12px;padding:10px 14px}
+.odg-hint-h{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mu)}
+.odg-hint-v{font-size:1.15rem;margin-top:2px;color:var(--tx)}
+.odg-hint-v b{color:#fff}
+.odg-hint-v span{font-size:.8rem;color:var(--mu);margin-left:6px}
+.odg-hint-l{margin-top:6px;font-size:.8rem;color:var(--mu)}
+.odg-hint-l i{font-style:normal;color:var(--tx);font-weight:700}
+.odg-timer{display:flex;align-items:center;gap:10px;background:var(--sf2);border:1px solid var(--ln);border-radius:12px;padding:10px 14px;flex-wrap:wrap}
+.odg-t-label{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mu)}
+.odg-t-time{font-variant-numeric:tabular-nums;font-size:1.8rem;font-weight:700;min-width:4.6rem}
+.odg-timer.run .odg-t-time{color:var(--ok)}
+.odg-t-msg{font-size:.8rem;color:var(--mu);width:100%}
+.odg-timer-wrap{display:flex;flex-direction:column;gap:8px}
+
+#exercise-add-form-container:not(.odg-open) .odg-extra,#exercise-add-form-container:not(.odg-open) #set-recovery-fields{display:none!important}
+.app-main .odg-more{width:100%;padding:9px 14px;background:none;border:1px dashed var(--ln);color:var(--mu);font-size:.84rem;font-weight:600}
+.app-main .odg-more:hover{color:var(--tx);border-color:var(--mu)}
+@media(max-width:639px){.odg-t-label{display:none}.odg-t-time{font-size:1.6rem;min-width:4rem}.app-main .odg-timer .btn{padding:8px 12px}}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1217,7 +1235,8 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             if (Number.isInteger(set && set.restSeconds) && set.restSeconds >= 0) bits.push(`Desc. ${set.restSeconds}s`);
             if (set && set.rom) bits.push(`ROM ${set.rom}`);
             if (set && set.tempo) bits.push(`Tempo ${set.tempo}`);
-            return bits.length ? `<span class="text-xs text-gray-400">${esc(bits.join(' · '))}</span>` : '';
+            const notesHtml = set && set.notes ? `<div class="text-xs text-gray-300 italic mt-1">📝 ${esc(set.notes)}</div>` : '';
+            return (bits.length ? `<span class="text-xs text-gray-400">${esc(bits.join(' · '))}</span>` : '') + notesHtml;
         };
 
         const getSetMuscleEquivalentMap = (set, catalogEntry, threshold, settings = volumeSettings) => {
@@ -2887,6 +2906,7 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             newSet.restSeconds = restSeconds;
             newSet.rom = ['completo', 'parcial', 'asistido'].includes(romRaw) ? romRaw : null;
             newSet.tempo = tempoRaw || null;
+            newSet.notes = ((document.getElementById('set-notes-input') || {}).value || '').trim().slice(0, 500) || null;
 
             let calculatedVolume = 0;
 
@@ -3032,6 +3052,8 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             if (restInputAfterSave) restInputAfterSave.value = '';
             if (romInputAfterSave) romInputAfterSave.value = '';
             if (tempoInputAfterSave) tempoInputAfterSave.value = '';
+            const _n = document.getElementById('set-notes-input'); if (_n) _n.value = '';
+            if (window.odgAfterSet) window.odgAfterSet();
             
             // Update the exercise input value directly if it's not being auto-filled by routine
             const exerciseInputElem = document.getElementById('exercise-input');
@@ -3089,6 +3111,8 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             if (restInput) restInput.value = '';
             if (romInput) romInput.value = '';
             if (tempoInput) tempoInput.value = '';
+            const _n = document.getElementById('set-notes-input'); if (_n) _n.value = '';
+            if (window.odgAfterSet) window.odgAfterSet();
 
             // Update the exercise input value directly
             const exerciseInputElem = document.getElementById('exercise-input');
@@ -3126,7 +3150,8 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             } else if (set.type === 'Cluster') {
                 fields = inp('weight', set.weight, 'Peso') + lbl('kg ×') + (set.reps || []).map((r, i) => inp('clusterR', r, 'Reps', i)).join('') + lbl('reps');
             }
-            return fields + rirField + extraFields;
+            const notesField = `<div class="w-full mt-2"><label class="text-xs text-gray-500 block">Notas</label><input type="text" maxlength="500" data-f="notes" value="${esc(set.notes || '')}" class="w-full px-2 py-1 border rounded text-sm text-gray-800" /></div>`;
+            return fields + rirField + extraFields + notesField;
         };
         // Lee el formulario de edición. Devuelve null si algún dato no es válido.
         const readSetEditRaw = (set, root) => {
@@ -3150,7 +3175,7 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
             const tempoElement = root.querySelector('[data-f="tempo"]');
             const tempoRaw = tempoElement ? tempoElement.value.trim() : '';
             if (tempoRaw && !/^\d{1,2}-\d{1,2}-\d{1,2}-\d{1,2}$/.test(tempoRaw)) return null;
-            const metadataData = { restSeconds, rom: ['completo', 'parcial', 'asistido'].includes(romRaw) ? romRaw : null, tempo: tempoRaw || null };
+            const metadataData = { restSeconds, rom: ['completo', 'parcial', 'asistido'].includes(romRaw) ? romRaw : null, tempo: tempoRaw || null, notes: ((root.querySelector('[data-f="notes"]') || {}).value || '').trim().slice(0, 500) || null };
 
             if (set.type === 'Normal') {
                 const weight = num('[data-f="weight"]'), reps = num('[data-f="reps"]', true);
@@ -4927,7 +4952,7 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
                 "ID Rutina", "Mesociclo", "ID mesociclo", "Semana de mesociclo", "Series planificadas base", "Series planificadas ajustadas",
                 "Rango reps objetivo", "RIR objetivo", "Descanso objetivo (s)", "Regla de progresión", "Ajuste de descarga",
                 "e1RM analizable (kg)", "Fórmula e1RM", "Umbral RIR análisis",
-                "Descanso previo real (s)", "Rango de movimiento", "Tempo", "Estado energético",
+                "Descanso previo real (s)", "Rango de movimiento", "Tempo", "Notas de la serie", "Estado energético",
                 "Sueño (h)", "TQR", "RPE de sesión", "Agujetas por músculo (JSON)",
                 "Dolor articular (JSON)", "Rendimiento percibido por músculo (JSON)",
                 "Ajustes de recuperación aceptados (JSON)", "Reducción de series por recuperación (%)",
@@ -5036,6 +5061,7 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
                                 Number.isInteger(set.restSeconds) ? set.restSeconds : '',
                                 `"${(set.rom || '').replace(/"/g, '""')}"`,
                                 `"${(set.tempo || '').replace(/"/g, '""')}"`,
+                                `"${(set.notes || '').replace(/"/g, '""')}"`,
                                 `"${recoverySnapshot.energyState || 'unknown'}"`,
                                 recoverySnapshot.sleepHours === null ? '' : recoverySnapshot.sleepHours,
                                 recoverySnapshot.tqr === null ? '' : recoverySnapshot.tqr,
@@ -6156,15 +6182,19 @@ body{background:var(--bg)!important;color:var(--tx);font-family:Inter,system-ui,
                             </select>
                         </div>
 
+                        <div id="odg-hint" class="col-span-full"></div>
+                        <div id="odg-timer" class="col-span-full"></div>
                         <div id="specific-fields-container" class="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Specific fields for set type will be rendered here by renderSetTypeFields() -->
                         </div>
+                        <div class="col-span-full"><button type="button" id="odg-more" class="odg-more" onclick="odgMore()">Más campos</button></div>
                         <div id="set-recovery-fields" class="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div><label for="set-rest-input" class="block text-xs text-gray-300 mb-1">Descanso previo real (segundos)</label><input id="set-rest-input" type="number" min="0" max="3600" step="1" placeholder="Sin registrar" class="w-full px-3 py-2 rounded text-gray-800"></div>
                             <div><label for="set-rom-input" class="block text-xs text-gray-300 mb-1">Rango de movimiento</label><select id="set-rom-input" class="w-full px-3 py-2 rounded text-gray-800"><option value="">Sin registrar</option><option value="completo">Completo</option><option value="parcial">Parcial</option><option value="asistido">Asistido</option></select></div>
                             <div><label for="set-tempo-input" class="block text-xs text-gray-300 mb-1">Tempo (excéntrica-pausa-concéntrica-pausa)</label><input id="set-tempo-input" type="text" maxlength="15" placeholder="Ej. 3-1-1-0" class="w-full px-3 py-2 rounded text-gray-800"></div>
                         </div>
                         
+                        <div class="col-span-full odg-extra"><label for="set-notes-input" class="block text-xs text-gray-300 mb-1">Notas de la serie (opcional)</label><input id="set-notes-input" type="text" maxlength="500" placeholder="Ej.: molestia en el hombro, agarre más ancho…" class="w-full px-3 py-2 rounded text-gray-800" /></div>
                         <div id="exercise-add-form-buttons-container" class="col-span-full">
                             <!-- Buttons will be rendered here by renderExerciseAddFormButtons() -->
                         </div>
@@ -7359,6 +7389,99 @@ function mk(b,collapsed){
 }
 document.querySelectorAll('#tab-contents .bg-white\\/10').forEach(b=>{const h=b.querySelector('h3');if(h&&/Multiplicadores|umbrales|Cat[aá]logo estructurado|Planificado frente/i.test(h.textContent))mk(b,true)});
 document.querySelectorAll('#user-guide-section section').forEach((s,i)=>mk(s,i>1));
+
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const fmtSet=s=>{
+ if(!s)return '0 kg × 0 reps';
+ if(s.type==='Drop Set'&&Array.isArray(s.entries))return s.entries.map(e=>`${e.weight} kg × ${e.reps}`).join(' → ')+' (drop set)';
+ if(s.type==='Rest Pause')return `${s.weight} kg × ${s.repsBefore}+${s.repsAfter} (rest pause)`;
+ if(s.type==='Cluster')return `${s.weight} kg × ${(s.reps||[]).join('+')} (cluster)`;
+ return `${s.weight} kg × ${s.reps} reps`;
+};
+const escH=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function prevSets(name){
+ const cw=currentWorkout,key=norm(name);
+ if(!cw||!key)return null;
+ const t=norm(cw.title);
+ const same=w=>cw.routineId?w.routineId===cw.routineId:(t&&norm(w.title)===t);
+ const ts=w=>String(w.endTime||w.startTime||w.date||'');
+ const list=(workouts||[]).filter(w=>w.id!==cw.id&&same(w)).map(w=>({w,ex:(w.exercises||[]).find(e=>norm(e.name)===key&&(e.sets||[]).length)})).filter(x=>x.ex).sort((a,b)=>ts(b.w).localeCompare(ts(a.w)));
+ return list.length?list[0].ex.sets:[];
+}
+function refreshHint(){
+ const el=$('#odg-hint');if(!el)return;
+ let html;
+ const name=(typeof exerciseForm!=='undefined'&&exerciseForm.exercise)||'';
+ if(!currentWorkout||!norm(name)){html='<div class="odg-hint"><div class="odg-hint-h">Última vez</div><div class="odg-hint-v">Elige un ejercicio para ver tus series anteriores.</div></div>'}
+ else{
+  const cur=(currentWorkout.exercises||[]).find(e=>norm(e.name)===norm(name));
+  const n=(cur?cur.sets.length:0)+1;
+  const prev=prevSets(name)||[];
+  const ref=prev[n-1];
+  const rir=ref&&Number.isInteger(ref.rir)?`<span>RIR ${ref.rir}</span>`:'';
+  const all=prev.length?`<div class="odg-hint-l">Entreno anterior: ${prev.map((s,i)=>i===n-1?`<i>${i+1}) ${escH(fmtSet(s))}</i>`:`${i+1}) ${escH(fmtSet(s))}`).join(' · ')}</div>`:`<div class="odg-hint-l">Sin datos previos de esta rutina.</div>`;
+  html=`<div class="odg-hint"><div class="odg-hint-h">Serie ${n} · ${escH(name)}</div><div class="odg-hint-v">Última vez: <b>${escH(fmtSet(ref))}</b>${rir}</div>${all}</div>`;
+ }
+ if(el.dataset.h!==html){el.innerHTML=html;el.dataset.h=html}
+}
+let startAt=+store.get('odg-rest-start')||0,restDone=null;
+const mmss=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+function drawTimer(){
+ const el=$('#odg-timer');if(!el)return;
+ if(!el.dataset.ready){
+  el.innerHTML='<div class="odg-timer-wrap"><div class="odg-timer"><div class="odg-t-label">Descanso</div><div class="odg-t-time" id="odg-t-time">00:00</div><button class="btn" id="odg-t-btn" onclick="odgTimerToggle()">Iniciar</button><button class="btn ghost" onclick="odgTimerReset()">Reiniciar</button><div class="odg-t-msg" id="odg-t-msg"></div></div></div>';
+  el.dataset.ready='1';
+ }
+ const run=!!startAt,sec=run?Math.round((Date.now()-startAt)/1000):(restDone||0);
+ $('#odg-t-time').textContent=mmss(sec);
+ $('#odg-t-btn').textContent=run?'Parar':'Iniciar';
+ el.firstChild.firstChild.classList.toggle('run',run);
+ $('#odg-t-msg').textContent=run?'Descansando… pulsa Parar cuando empieces la serie.':(restDone!==null?`Descanso de ${mmss(restDone)} listo. Se guardará con la próxima serie.`:'Pulsa Iniciar al acabar la serie.');
+ const inp=$('#set-rest-input');
+ if(!run&&restDone!==null&&inp&&inp.value==='')inp.value=restDone;
+}
+window.odgTimerToggle=function(){
+ if(startAt){
+  restDone=Math.min(3600,Math.round((Date.now()-startAt)/1000));startAt=0;
+  try{localStorage.removeItem('odg-rest-start')}catch(e){}
+  const inp=$('#set-rest-input');if(inp)inp.value=restDone;
+ }else{
+  startAt=Date.now();restDone=null;store.set('odg-rest-start',String(startAt));
+  const inp=$('#set-rest-input');if(inp)inp.value='';
+ }
+ drawTimer();
+};
+window.odgTimerReset=function(){
+ startAt=0;restDone=null;try{localStorage.removeItem('odg-rest-start')}catch(e){}
+ const inp=$('#set-rest-input');if(inp)inp.value='';
+ drawTimer();
+};
+window.odgAfterSet=function(){restDone=null;drawTimer();refreshHint()};
+
+function markExtras(){
+ const r=$('#set-rir-input'),box=$('#specific-fields-container');
+ if(r&&box){let w=r;while(w.parentElement&&w.parentElement!==box)w=w.parentElement;if(w.parentElement===box)w.classList.add('odg-extra')}
+ const c=$('#exercise-add-form-container');
+ if(c&&store.get('odg-more')==='1'&&!c.dataset.m){c.classList.add('odg-open');c.dataset.m='1'}
+ const b=$('#odg-more');
+ if(b&&c){const open=c.classList.contains('odg-open');const rir=(typeof exerciseForm!=='undefined'&&exerciseForm.rir!==''&&exerciseForm.rir!==undefined)?`RIR ${exerciseForm.rir}`:'sin RIR';const tx=open?'Ocultar campos':`Más campos · ${rir}, descanso, notas…`;if(b.textContent!==tx)b.textContent=tx}
+}
+window.odgMore=function(){
+ const c=$('#exercise-add-form-container');if(!c)return;
+ c.dataset.m='1';c.classList.toggle('odg-open');store.set('odg-more',c.classList.contains('odg-open')?'1':'0');markExtras();
+};
+let tmo=0;
+const sched=()=>{clearTimeout(tmo);tmo=setTimeout(()=>{refreshHint();drawTimer()},40)};
+const sec=$('#current-workout-section');
+if(sec){
+ new MutationObserver(ms=>{
+  markExtras();
+  if(ms.some(m=>{const n=m.target.nodeType===1?m.target:m.target.parentElement;return !(n&&n.closest('#odg-hint,#odg-timer'))}))sched();
+ }).observe(sec,{childList:true,subtree:true});
+}
+document.addEventListener('input',sched,true);
+document.addEventListener('change',()=>{markExtras();sched()},true);
+setInterval(()=>{if(startAt)drawTimer()},250);
 renderNav();
 })();
 </script>
